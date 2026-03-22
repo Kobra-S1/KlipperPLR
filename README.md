@@ -35,8 +35,7 @@ To install KlipperPLR Klipper, follow the steps below:
 * To resume printing after a power cut, simply execute the 'RESUME_INTERRUPTED' macro in the MAINSAIL console or via the Macro button on the MAINSAIL dashboard.
 
 ## Known Bugs:
-The preview image of the gcode file is not rebuilt.
- 
+None
 
 
 
