@@ -12,9 +12,9 @@ having already installed Klipper, Moonraker, and Mainsail (you can use Kiauh, bu
 To install KlipperPLR Klipper, follow the steps below:
 
 ## Installation
-* Clone the KlipperPLR Klipper repository from GitHub to your local machine:
+* Clone the Kobra-S1 KlipperPLR Klipperrepository from GitHub to your local machine:
     ```bash
-    git clone https://github.com/bigtreetech/KlipperPLR.git
+    git clone https://github.com/Kobra-S1/KlipperPLR.git
     cd KlipperPLR
     ./install.sh
     ```
