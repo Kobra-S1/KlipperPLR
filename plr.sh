@@ -76,10 +76,12 @@ cat {USER_HOME}/plrtmpA.$$ \
 
 echo 'M118 Resuming print movements...' >> ${PLR_PATH}/"${plr}"
 
-# Find last Extruder position safely
-BG_EX=$(tac {USER_HOME}/plrtmpA.$$ | sed -e '/ '"${Z_PAT}"'/q' | tac | tail -n+2 | sed -e '/ Z[0-9]/ q' | tac | sed -e '/ E[0-9]/ q' | sed -ne 's/.* E\([^ ]*\)/G92 E\1/p')
+# Find last Extruder position safely.
+# We need the E value just BEFORE the replay start point (last Z_PAT match),
+# so the extruder position matches what the slicer expected at that point.
+BG_EX=$(tac {USER_HOME}/plrtmpA.$$ | sed -ne '/^[^;].*'"${Z_PAT}"'/,$ p' | tail -n+2 | grep -v '^;' | grep -m1 ' E[0-9]' | sed -ne 's/.* E\([^ ]*\)/G92 E\1/p')
 if [ "${BG_EX}" = "" ]; then
-  BG_EX=$(tac {USER_HOME}/plrtmpA.$$ | sed -e '/ '"${Z_PAT}"'/q' | tac | tail -n+2 | sed -ne '/ Z/,$ p' | sed -e '/ E[0-9]/ q' | sed -ne 's/.* E\([^ ]*\)/G92 E\1/p')
+  BG_EX=$(cat {USER_HOME}/plrtmpA.$$ | sed '/^[^;].*'"${Z_PAT}"'/q' | grep -v '^;' | tac | grep -m1 ' E[0-9]' | sed -ne 's/.* E\([^ ]*\)/G92 E\1/p')
 fi
 M83=$(cat {USER_HOME}/plrtmpA.$$ | sed '/^[^;].*'"${Z_PAT}"'/q' | sed -ne '/\(M83\)/p')
 
@@ -114,8 +116,12 @@ echo 'G91' >> ${PLR_PATH}/"${plr}"
 echo 'G1 Z-5' >> ${PLR_PATH}/"${plr}"
 echo 'G90' >> ${PLR_PATH}/"${plr}"
 
-# Append the rest of the failed G-code (contains absolute X,Y moves to return to part)
-tac {USER_HOME}/plrtmpA.$$ | sed -e '/ '"${Z_PAT}"'/q' | tac | tail -n+2 | sed -ne '/ Z/,$ p' >> ${PLR_PATH}/"${plr}"
+# Replay from the interrupted Z layer.  Previous code skipped the entire
+# layer that was printing when power failed, causing the resume layer to bond
+# poorly to a partially-printed surface.  By including the Z_PAT line and
+# everything after it, the nozzle re-traces already-printed paths (harmless —
+# adds material on top) and fills in the missing parts of the interrupted layer.
+tac {USER_HOME}/plrtmpA.$$ | sed -e '/^[^;].*'"${Z_PAT}"'/q' | tac | sed -ne '/ Z/,$ p' >> ${PLR_PATH}/"${plr}"
 
 rm {USER_HOME}/plrtmpA.$$
 

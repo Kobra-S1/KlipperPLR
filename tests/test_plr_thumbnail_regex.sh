@@ -753,6 +753,125 @@ else
     FAIL=$((FAIL + 1))
 fi
 
+# ==========================================================================
+# INTERRUPTED LAYER REPLAY TESTS
+#
+# When power fails mid-layer at Z=X, the recovery must replay the
+# interrupted layer (from the last Z=X occurrence) instead of skipping
+# to the next layer.  Skipping caused weak adhesion / delamination at
+# the resume point because the partially-printed layer was never completed.
+# ==========================================================================
+
+# --------------------------------------------------------------------------
+# Test 28: Interrupted layer is replayed — appended gcode must contain the
+#          failure Z layer, not just the layer above it.
+# --------------------------------------------------------------------------
+echo -n "  interrupted_layer_replayed ... "
+echo "M83
+G1 X10 Y10 Z0.2 E0.5
+G1 X20 Y20 Z0.4 E1.0
+G1 X30 Y30 Z0.6 E2.0
+G1 X40 Y40 Z0.8 E3.0
+G1 X50 Y50 Z1.0 E4.0
+G1 X60 Y60 Z1.2 E5.0" > "$GCODE_FILE"
+cat > "$VARIABLES" << VARS
+[Variables]
+last_file = 'testfile.gcode'
+filepath = '${GCODE_FILE}'
+VARS
+rm -f "$PLR_OUTDIR/testfile.gcode"
+bash "$PLR_SH" "0.8" "testfile.gcode" >/dev/null 2>&1 || true
+
+# The appended gcode (after the last G90) must contain the Z0.8 layer line
+LAST_G90=$(grep -n '^G90$' "$PLR_OUTDIR/testfile.gcode" | tail -1 | cut -d: -f1)
+if [ -n "$LAST_G90" ]; then
+    has_replay=$(tail -n +"$((LAST_G90 + 1))" "$PLR_OUTDIR/testfile.gcode" | grep -c ' Z0\.8 ' || true)
+    has_next=$(tail -n +"$((LAST_G90 + 1))" "$PLR_OUTDIR/testfile.gcode" | grep -c ' Z1\b\| Z1 ' || true)
+    if [ "$has_replay" -ge 1 ] && [ "$has_next" -ge 1 ]; then
+        echo "PASS"
+        PASS=$((PASS + 1))
+    else
+        echo "FAIL (replay_Z0.8=$has_replay, next_Z1.0=$has_next)"
+        FAIL=$((FAIL + 1))
+    fi
+else
+    echo "FAIL (no G90 found)"
+    FAIL=$((FAIL + 1))
+fi
+
+# --------------------------------------------------------------------------
+# Test 29: Layer replay with Z-hops — recovery replays from last Z-hop
+#          return, not just the next layer.
+# --------------------------------------------------------------------------
+echo -n "  layer_replay_with_zhops ... "
+echo "M83
+G1 X10 Y10 Z0.2 E0.5
+G1 X20 Y20 Z2.0 E1.0
+G1 X30 Y30 Z2.4 E2.0
+G1 X40 Y40 Z2.0 E3.0
+G1 X50 Y50 E4.0
+G1 X60 Y60 E5.0
+G1 X70 Y70 Z2.4 E6.0
+G1 X80 Y80 Z2.0 E7.0
+G1 X90 Y90 E8.0
+G1 X95 Y95 E8.5
+G1 X100 Y100 Z2.2 E9.0
+G1 X110 Y110 Z2.4 E10.0" > "$GCODE_FILE"
+cat > "$VARIABLES" << VARS
+[Variables]
+last_file = 'testfile.gcode'
+filepath = '${GCODE_FILE}'
+VARS
+rm -f "$PLR_OUTDIR/testfile.gcode"
+bash "$PLR_SH" "2.0" "testfile.gcode" >/dev/null 2>&1 || true
+
+# The appended gcode must contain Z2.0 (the replayed layer) AND subsequent
+# lines from the Z2.0 layer
+LAST_G90=$(grep -n '^G90$' "$PLR_OUTDIR/testfile.gcode" | tail -1 | cut -d: -f1)
+if [ -n "$LAST_G90" ]; then
+    replay_z2=$(tail -n +"$((LAST_G90 + 1))" "$PLR_OUTDIR/testfile.gcode" | grep -c ' Z2\.0 \| Z2\.0$\| Z2 ' || true)
+    replay_moves=$(tail -n +"$((LAST_G90 + 1))" "$PLR_OUTDIR/testfile.gcode" | grep -c '^G1 X' || true)
+    if [ "$replay_z2" -ge 1 ] && [ "$replay_moves" -ge 3 ]; then
+        echo "PASS (Z2.0_lines=$replay_z2, moves=$replay_moves)"
+        PASS=$((PASS + 1))
+    else
+        echo "FAIL (Z2.0_lines=$replay_z2, moves=$replay_moves)"
+        FAIL=$((FAIL + 1))
+    fi
+else
+    echo "FAIL (no G90 found)"
+    FAIL=$((FAIL + 1))
+fi
+
+# --------------------------------------------------------------------------
+# Test 30: BG_EX for absolute E — E value must be from BEFORE the replayed
+#          layer start, not from inside/after it.
+# --------------------------------------------------------------------------
+echo -n "  bg_ex_before_replay_start ... "
+echo "G1 X10 Y10 Z0.2 E0.5
+G1 X20 Y20 Z1.0 E1.0
+G1 X30 Y30 Z2.0 E2.0
+G1 X40 Y40 Z2.4 E3.0
+G1 X50 Y50 Z3.0 E4.0" > "$GCODE_FILE"
+cat > "$VARIABLES" << VARS
+[Variables]
+last_file = 'testfile.gcode'
+filepath = '${GCODE_FILE}'
+VARS
+rm -f "$PLR_OUTDIR/testfile.gcode"
+bash "$PLR_SH" "2.0" "testfile.gcode" >/dev/null 2>&1 || true
+
+# In absolute E mode, G92 E should be set to the E value BEFORE the Z2.0
+# line (E1.0), not the E at Z2.0 (E2.0) or after it (E3.0)
+e_val=$(grep '^G92 E' "$PLR_OUTDIR/testfile.gcode" | head -1 | sed 's/G92 E//')
+if [ "$e_val" = "1.0" ]; then
+    echo "PASS (G92 E$e_val)"
+    PASS=$((PASS + 1))
+else
+    echo "FAIL (expected G92 E1.0, got G92 E$e_val)"
+    FAIL=$((FAIL + 1))
+fi
+
 echo ""
 echo "=== Results: $PASS passed, $FAIL failed ==="
 if [ "$FAIL" -gt 0 ]; then
