@@ -19,6 +19,12 @@ To install KlipperPLR Klipper, follow the steps below:
     ./install.sh
     ```
 
+The installer will prompt you for the path to your `printer.cfg` (defaults to `~/printer_data/config/printer.cfg` — press Enter to accept, or type a custom path). It then automatically:
+- Adds `[include plr.cfg]` to the top of your `printer.cfg`.
+- Patches your `CANCEL_PRINT` and/or `PRINT_END` macros (if they exist) to call `clear_last_file` on cancel/end, so PLR state is cleared and no false recovery prompt appears on the next restart. Already-patched macros are skipped (safe to re-run).
+
+When run non-interactively (e.g. via Moonraker's `update_manager`), the default path is used automatically without prompting.
+
 * start-gcode add in your slicer:
     ```bash
     G31
