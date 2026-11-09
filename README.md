@@ -29,12 +29,10 @@ When run non-interactively (e.g. via Moonraker's `update_manager`), the default 
     ```bash
     G31
     save_last_file
-    SAVE_VARIABLE VARIABLE=was_interrupted VALUE=True
     ```
 
 * end-gcode add in your slicer:
     ```bash
-    SAVE_VARIABLE VARIABLE=was_interrupted VALUE=False
     clear_last_file
     G31
     ```
@@ -47,10 +45,10 @@ When run non-interactively (e.g. via Moonraker's `update_manager`), the default 
 ## How It Works
 
 ### Recording
-Before each layer change, the `LOG_Z` macro saves the current Z height, extruder temperature, bed temperature, fan speed, and active tool to `variables.cfg`. The slicer start-gcode marks the print as "interrupted" via `SAVE_VARIABLE`, and the end-gcode clears that flag.
+Before each layer change, the `LOG_Z` macro saves the current Z height, extruder temperature, bed temperature, fan speed, and active tool to `variables.cfg`. `save_last_file` in the start-gcode records the file, and `clear_last_file` in the end-gcode or `CANCEL_PRINT` clears it, along with the `was_interrupted` flag those two macros keep for other tools.
 
 ### Detection
-On Klipper startup, a `CHECK_PLR_STATE` delayed gcode checks if `was_interrupted` is still `True`. If so — and the printer is in `Idle`/`Ready` state — it shows a prompt to resume.
+On Klipper startup, a `CHECK_PLR_STATE` delayed gcode checks if `last_file` is still set. If so — and the printer is in `Idle`/`Ready` state — it shows a prompt to resume.
 
 ### Recovery
 When `RESUME_INTERRUPTED` is triggered:
