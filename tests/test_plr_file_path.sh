@@ -74,7 +74,8 @@ else
     FAIL=$((FAIL + 1))
 fi
 
-# Renders the macro as Klipper does, with undefined names raising.
+# Stricter than Klipper's own Jinja environment: an undefined name raises here,
+# so a mistyped variable fails the test instead of rendering empty.
 echo -n "  macro_renders_with_and_without_gcode_file ... "
 if python3 - "$REPO_DIR/plr.cfg" << 'PY_RENDER'
 import sys
