@@ -74,5 +74,37 @@ else
     FAIL=$((FAIL + 1))
 fi
 
+# Renders the macro as Klipper does, with undefined names raising.
+echo -n "  macro_renders_with_and_without_gcode_file ... "
+if python3 - "$REPO_DIR/plr.cfg" << 'PY_RENDER'
+import sys
+
+import jinja2
+
+section = open(sys.argv[1]).read().split("[gcode_macro RESUME_INTERRUPTED]")[1].split("\n[")[0]
+template = jinja2.Environment("{%", "%}", "{", "}", undefined=jinja2.StrictUndefined).from_string(
+    section.split("=", 1)[1]
+)
+
+
+def rendered_command(params, variables):
+    printer = {"save_variables": {"variables": {"power_resume_z": 2.0, **variables}}}
+    text = template.render(printer=printer, params=params)
+    return next(line.strip() for line in text.splitlines() if "POWER_LOSS_RESUME" in line)
+
+
+saved = {"last_file": "a b.gcode", "filepath": "/g/sub/a b.gcode"}
+assert '2.0 \\"a b.gcode\\" \\"/g/sub/a b.gcode\\"' in rendered_command({}, saved)
+assert '2.0 \\"other.gcode\\" \\"\\"' in rendered_command({"GCODE_FILE": "other.gcode"}, saved)
+assert '2.0 \\"a.gcode\\" \\"\\"' in rendered_command({}, {"last_file": "a.gcode"})
+PY_RENDER
+then
+    echo "PASS"
+    PASS=$((PASS + 1))
+else
+    echo "FAIL (RESUME_INTERRUPTED did not render; needs python3-jinja2)"
+    FAIL=$((FAIL + 1))
+fi
+
 echo "=== Results: $PASS passed, $FAIL failed ==="
 [ "$FAIL" -eq 0 ]
