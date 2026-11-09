@@ -1,17 +1,12 @@
 #!/bin/bash
 mkdir -p {USER_HOME}/printer_data/gcodes/plr/
 
-filepath=$(sed -n "s/.*filepath *= *'\([^']*\)'.*/\1/p" {USER_HOME}/printer_data/config/variables.cfg)
-filepath=$(printf "$filepath")
-
-last_file=$(sed -n "s/.*last_file *= *'\([^']*\)'.*/\1/p" {USER_HOME}/printer_data/config/variables.cfg)
-last_file=$(printf "$last_file")
-
-# Fallback to macro parameter if variables.cfg extraction fails or is empty
-if [ -z "$last_file" ] && [ -n "$2" ]; then
-    last_file="$2"
-    filepath="{USER_HOME}/printer_data/gcodes/${last_file}"
-fi
+# Usage: plr.sh Z_HEIGHT FILE_NAME [FILE_PATH]
+# Without FILE_PATH (RESUME_INTERRUPTED GCODE_FILE=...) the file is in the gcodes
+# root. The macro passes these because only Klipper knows where [save_variables]
+# keeps its file.
+last_file="$2"
+filepath="${3:-{USER_HOME}/printer_data/gcodes/${last_file}}"
 
 echo "$last_file"
 plr=$last_file

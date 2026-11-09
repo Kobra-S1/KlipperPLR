@@ -24,7 +24,6 @@ CONFIG_DIR="$TMPDIR/printer_data/config"
 mkdir -p "$PLR_OUTDIR" "$GCODE_DIR" "$CONFIG_DIR"
 
 GCODE_FILE="$GCODE_DIR/testfile.gcode"
-VARIABLES="$CONFIG_DIR/variables.cfg"
 
 # ---- Prepare a self-contained copy of plr.sh with paths pointing to TMPDIR -
 PLR_SH="$TMPDIR/plr.sh"
@@ -42,13 +41,8 @@ run_test() {
 
     echo -n "  $test_name ... "
 
-    # Write gcode + variables
+    # Write gcode
     echo "$gcode_content" > "$GCODE_FILE"
-    cat > "$VARIABLES" << VARS
-[Variables]
-last_file = 'testfile.gcode'
-filepath = '${GCODE_FILE}'
-VARS
 
     # Clear previous output
     rm -f "$PLR_OUTDIR/testfile.gcode"
@@ -256,11 +250,6 @@ G1 X20 Y20 Z1.0 E1.0
 G1 X30 Y30 Z2.0 E2.0
 G1 X40 Y40 Z2.4 E3.0
 G1 X50 Y50 Z3.0 E4.0"
-cat > "$VARIABLES" << VARS
-[Variables]
-last_file = 'testfile.gcode'
-filepath = '${GCODE_FILE}'
-VARS
 rm -f "$PLR_OUTDIR/testfile.gcode"
 bash "$PLR_SH" "2.0" "testfile.gcode" >/dev/null 2>&1 || true
 first_z=$(grep -v '^;' "$PLR_OUTDIR/testfile.gcode" | head -1)
@@ -313,11 +302,6 @@ G1 X10 Y10 Z0.2 E0.5
 G1 X20 Y20 Z1.0 E1.0
 G1 X30 Y30 Z2.0 E2.0
 G1 X40 Y40 Z2.4 E3.0"
-cat > "$VARIABLES" << VARS
-[Variables]
-last_file = 'testfile.gcode'
-filepath = '${GCODE_FILE}'
-VARS
 rm -f "$PLR_OUTDIR/testfile.gcode"
 bash "$PLR_SH" "2.0" "testfile.gcode" >/dev/null 2>&1 || true
 has_thumb=$(grep -c '^; thumbnail begin' "$PLR_OUTDIR/testfile.gcode" || true)
@@ -368,11 +352,6 @@ G1 X10 Y10 Z0.2 E0.5
 G1 X20 Y20 Z1.0 E1.0
 G1 X30 Y30 Z2.0 E2.0
 G1 X40 Y40 Z2.4 E3.0" > "$GCODE_FILE"
-cat > "$VARIABLES" << VARS
-[Variables]
-last_file = 'testfile.gcode'
-filepath = '${GCODE_FILE}'
-VARS
 rm -f "$PLR_OUTDIR/testfile.gcode"
 bash "$PLR_SH" "2.0" "testfile.gcode" >/dev/null 2>&1 || true
 if grep -q '^G92 E0$' "$PLR_OUTDIR/testfile.gcode" && grep -q '^M83$' "$PLR_OUTDIR/testfile.gcode"; then
@@ -424,11 +403,6 @@ G1 X30 Y30 Z2.0 E2.0
 G1 X40 Y40 Z2.4 E3.0
 G1 X50 Y50 Z3.0 E4.0
 G1 X60 Y60 Z3.4 E5.0" > "$GCODE_FILE"
-cat > "$VARIABLES" << VARS
-[Variables]
-last_file = 'testfile.gcode'
-filepath = '${GCODE_FILE}'
-VARS
 rm -f "$PLR_OUTDIR/testfile.gcode"
 bash "$PLR_SH" "2.0" "testfile.gcode" >/dev/null 2>&1 || true
 
@@ -658,11 +632,6 @@ G1 X160 Y160 Z10 E15.0
 G1 X170 Y170 Z10.2 E16.0"
 
 echo "$BENCHY_GCODE" > "$GCODE_FILE"
-cat > "$VARIABLES" << VARS
-[Variables]
-last_file = 'testfile.gcode'
-filepath = '${GCODE_FILE}'
-VARS
 rm -f "$PLR_OUTDIR/testfile.gcode"
 
 # --- PLR #1: crash at Z=2.4 ---
@@ -676,7 +645,7 @@ if [ -n "$plr1_z" ] && python3 -c "import sys; sys.exit(0 if float('$plr1_z') > 
 fi
 
 # --- PLR #2: crash at Z=6.0 (integer Z!) ---
-# variables.cfg still points to original (save_last_file skips /plr/)
+# The saved path still points to the original (save_last_file skips /plr/)
 bash "$PLR_SH" "6.0" "testfile.gcode" >/dev/null 2>&1 || true
 
 # Verify PLR #2 recovery file
@@ -708,11 +677,6 @@ fi
 # --------------------------------------------------------------------------
 echo -n "  triple_plr_z2.4_z6.0_z10.0 ... "
 echo "$BENCHY_GCODE" > "$GCODE_FILE"
-cat > "$VARIABLES" << VARS
-[Variables]
-last_file = 'testfile.gcode'
-filepath = '${GCODE_FILE}'
-VARS
 rm -f "$PLR_OUTDIR/testfile.gcode"
 
 # PLR #1: Z=2.4
@@ -774,11 +738,6 @@ G1 X30 Y30 Z0.6 E2.0
 G1 X40 Y40 Z0.8 E3.0
 G1 X50 Y50 Z1.0 E4.0
 G1 X60 Y60 Z1.2 E5.0" > "$GCODE_FILE"
-cat > "$VARIABLES" << VARS
-[Variables]
-last_file = 'testfile.gcode'
-filepath = '${GCODE_FILE}'
-VARS
 rm -f "$PLR_OUTDIR/testfile.gcode"
 bash "$PLR_SH" "0.8" "testfile.gcode" >/dev/null 2>&1 || true
 
@@ -817,11 +776,6 @@ G1 X90 Y90 E8.0
 G1 X95 Y95 E8.5
 G1 X100 Y100 Z2.2 E9.0
 G1 X110 Y110 Z2.4 E10.0" > "$GCODE_FILE"
-cat > "$VARIABLES" << VARS
-[Variables]
-last_file = 'testfile.gcode'
-filepath = '${GCODE_FILE}'
-VARS
 rm -f "$PLR_OUTDIR/testfile.gcode"
 bash "$PLR_SH" "2.0" "testfile.gcode" >/dev/null 2>&1 || true
 
@@ -853,11 +807,6 @@ G1 X20 Y20 Z1.0 E1.0
 G1 X30 Y30 Z2.0 E2.0
 G1 X40 Y40 Z2.4 E3.0
 G1 X50 Y50 Z3.0 E4.0" > "$GCODE_FILE"
-cat > "$VARIABLES" << VARS
-[Variables]
-last_file = 'testfile.gcode'
-filepath = '${GCODE_FILE}'
-VARS
 rm -f "$PLR_OUTDIR/testfile.gcode"
 bash "$PLR_SH" "2.0" "testfile.gcode" >/dev/null 2>&1 || true
 
